@@ -1,0 +1,12 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: apono-backend
+  description: A custom backend plugin for Backstage
+  annotations:
+    github.com/project-slug: apono-io/backstage-plugin-apono-backend
+spec:
+  type: backstage-backend-plugin
+  lifecycle: experimental
+  owner: Apono
+  system: backstage
