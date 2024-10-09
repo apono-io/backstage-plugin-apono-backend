@@ -45,9 +45,14 @@ export async function createRouter(
       return;
     }
 
-    const privateKey = config.getString('apono.certificate.privateKey');
+    const { publicKey, privateKey } = config.get<{
+        publicKey: string;
+        privateKey: string;
+    }>('apono.certificate');
 
-    const aponoJwtToken = await jwt.sign(user, privateKey, { algorithm: 'RS256' });
+    const pky = Buffer.from(publicKey).toString('base64');
+
+    const aponoJwtToken = await jwt.sign({ user, pky }, privateKey, { algorithm: 'RS256' });
 
     res.json({
       token: aponoJwtToken,
