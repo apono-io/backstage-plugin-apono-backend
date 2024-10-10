@@ -56,17 +56,11 @@ describe('createRouter', () => {
         ]
       });
 
-      // const mockAponoJwtToken = 'mockJwtToken';
-      // jest.spyOn(jwt, 'sign').mockImplementation(() => mockAponoJwtToken);
-
       const response = await request(app)
         .post('/authenticate')
         .send({});
 
-      console.log(response.body);
-
       expect(response.status).toBe(200);
-      // expect(response.body.token).toBe(mockAponoJwtToken);
     });
 
     it('returns 401 when user is not found', async () => {
