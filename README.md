@@ -59,9 +59,8 @@ The plugin requires configuration in the Backstage `app-config.yaml` to connect 
 
 ```yaml
 apono:
-  certificate:
-    publicKey: ${APONO_PUBLIC_KEY}
-    privateKey: ${APONO_PRIVATE_KEY}
+  publicKey: ${APONO_PUBLIC_KEY} # Base64 encoded RSA public key with minimum 2048 bits length
+  privateKey: ${APONO_PRIVATE_KEY} # Base64 encoded RSA private key with minimum 2048 bits length
 ```
 
 ## Contributing

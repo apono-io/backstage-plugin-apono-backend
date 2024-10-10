@@ -50,7 +50,7 @@ export async function createRouter(
       return;
     }
 
-    const privateKeyDecoded = Buffer.from(privateKey).toString('utf-8')
+    const privateKeyDecoded = Buffer.from(privateKey, 'base64').toString('utf-8')
 
     const expiresIn = expiresInS ?? '1h';
     const algorithm = signingAlgorithm ?? 'RS256';
