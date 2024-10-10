@@ -13,10 +13,8 @@ describe('createRouter', () => {
 
   const mockConfig = {
     apono: {
-      certificate: {
-        publicKey: 'mock-public-key',
-        privateKey: 'mock-private-key',
-      },
+      publicKey: 'mock-public-key',
+      privateKey: 'mock-private-key',
     },
   };
 
