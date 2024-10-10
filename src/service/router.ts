@@ -3,7 +3,7 @@ import { AuthService, HttpAuthService, LoggerService, RootConfigService, UserInf
 import { CatalogApi } from '@backstage/catalog-client';
 import express from 'express';
 import Router from 'express-promise-router';
-import jwt from 'jsonwebtoken';
+import jwt, { Algorithm } from 'jsonwebtoken';
 
 export interface RouterOptions {
   logger: LoggerService;
@@ -20,6 +20,11 @@ export async function createRouter(
   const { logger, config, httpAuth, catalog, auth, userInfo } = options;
 
   logger.info('Initializing apono backend')
+
+  const publicKey = config.getString('apono.publicKey');
+  const privateKey = config.getString('apono.privateKey');
+  const signingAlgorithm = config.getOptional<Algorithm>('apono.signingAlgorithm');
+  const expiresInS = config.getOptionalNumber('apono.expiresInS');
 
   const router = Router();
   router.use(express.json());
@@ -45,14 +50,12 @@ export async function createRouter(
       return;
     }
 
-    const { publicKey, privateKey } = config.get<{
-        publicKey: string;
-        privateKey: string;
-    }>('apono.certificate');
+    const privateKeyDecoded = Buffer.from(privateKey).toString('utf-8')
 
-    const pky = Buffer.from(publicKey).toString('base64');
+    const expiresIn = expiresInS ?? '1h';
+    const algorithm = signingAlgorithm ?? 'RS256';
 
-    const aponoJwtToken = await jwt.sign({ user, pky }, privateKey, { algorithm: 'RS256' });
+    const aponoJwtToken = await jwt.sign({ user, pky: publicKey }, privateKeyDecoded, { algorithm, expiresIn });
 
     res.json({
       token: aponoJwtToken,

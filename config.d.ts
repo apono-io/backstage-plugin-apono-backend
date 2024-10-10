@@ -1,20 +1,29 @@
+import { Algorithm } from "jsonwebtoken";
+
 export interface Config {
   apono: {
     /**
-     * Certificate, used for signing apono tokens
+     * Public key
+     * @visibility backend
      */
-    certificate: {
-      /**
-       * Public key
-       * @visibility backend
-       */
-      publicKey: string;
+    publicKey: string;
 
-      /**
-       * Private key
-       * @visibility secret
-       */
-      privateKey: string;
-    }
+    /**
+     * Private key
+     * @visibility secret
+     */
+    privateKey: string;
+
+    /**
+     * Private key
+     * @visibility secret
+     */
+    signingAlgorithm?: Algorithm;
+
+    /**
+     * Private key
+     * @visibility backend
+     */
+    expiresInS?: number;
   };
 }
