@@ -103,7 +103,10 @@ dist
 # TernJS port file
 .tern-port
 
+yarn.lock
+
 dist-types/
 
 .idea
-node_modules
+
+app-config.yaml

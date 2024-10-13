@@ -4,6 +4,7 @@ import { CatalogApi } from '@backstage/catalog-client';
 import express from 'express';
 import Router from 'express-promise-router';
 import jwt, { Algorithm } from 'jsonwebtoken';
+import { isValidBase64RSAPublicKey, isValidBase64RSAPrivateKey, doRSAKeyPairMatch } from './rsa-helpers';
 
 export interface RouterOptions {
   logger: LoggerService;
@@ -14,56 +15,109 @@ export interface RouterOptions {
   catalog: CatalogApi;
 }
 
-export async function createRouter(
-  options: RouterOptions,
-): Promise<express.Router> {
-  const { logger, config, httpAuth, catalog, auth, userInfo } = options;
+interface AponoConfig {
+  publicKey: string;
+  privateKey: string;
+  signingAlgorithm: Algorithm;
+  expiresInS: number | string;
+}
 
-  logger.info('Initializing apono backend')
+const DEFAULT_EXPIRES_IN = '1h';
+const DEFAULT_ALGORITHM: Algorithm = 'RS256';
 
+class ConfigurationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ConfigurationError';
+  }
+}
+
+const getAponoConfig = (config: RootConfigService): AponoConfig => {
   const publicKey = config.getString('apono.publicKey');
   const privateKey = config.getString('apono.privateKey');
-  const signingAlgorithm = config.getOptional<Algorithm>('apono.signingAlgorithm');
-  const expiresInS = config.getOptionalNumber('apono.expiresInS');
+  const signingAlgorithm = config.getOptionalString('apono.signingAlgorithm') as Algorithm || DEFAULT_ALGORITHM;
+  const expiresInS = config.getOptional<number | string>('apono.expiresInS') || DEFAULT_EXPIRES_IN;
+
+  if (!isValidBase64RSAPublicKey(publicKey)) {
+    throw new ConfigurationError('Invalid public key');
+  }
+
+  if (!isValidBase64RSAPrivateKey(privateKey)) {
+    throw new ConfigurationError('Invalid private key');
+  }
+
+  if (!doRSAKeyPairMatch(publicKey, privateKey)) {
+    throw new ConfigurationError('Public and private keys do not match');
+  }
+
+  return { publicKey, privateKey, signingAlgorithm, expiresInS };
+};
+
+const createAuthenticationHandler = (options: RouterOptions, aponoConfig: AponoConfig) => {
+  const { logger, httpAuth, userInfo, auth, catalog } = options;
+  const { publicKey, privateKey, signingAlgorithm, expiresInS } = aponoConfig;
+
+  return async (req: express.Request, res: express.Response) => {
+    try {
+      const credentials = await httpAuth.credentials(req);
+
+      const [info, tokenRes] = await Promise.all([
+        userInfo.getUserInfo(credentials),
+        auth.getPluginRequestToken({
+          onBehalfOf: credentials,
+          targetPluginId: 'catalog',
+        }),
+      ]);
+
+      const user = await catalog.getEntityByRef(info.userEntityRef, {
+        token: tokenRes.token,
+      });
+
+      if (!user) {
+        logger.error(`User not found: ${JSON.stringify(credentials)}`);
+        res.status(401).json({ error: 'User not found' });
+        return;
+      }
+
+      const privateKeyDecoded = Buffer.from(privateKey, 'base64').toString('utf-8');
+
+      const aponoJwtToken = jwt.sign({ user, pky: publicKey }, privateKeyDecoded, {
+        algorithm: signingAlgorithm,
+        expiresIn: expiresInS,
+      });
+
+      res.json({ token: aponoJwtToken });
+    } catch (error) {
+      if (error instanceof Error) logger.error('Authentication error', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  };
+};
+
+export async function createRouter(options: RouterOptions): Promise<express.Router> {
+  const { logger, config } = options;
+
+  logger.info('Initializing apono backend');
+
+  let aponoConfig: AponoConfig;
+  try {
+    aponoConfig = getAponoConfig(config);
+  } catch (error) {
+    if (error instanceof ConfigurationError) {
+      logger.error('Configuration error', error);
+      throw error;
+    }
+    if (error instanceof Error) logger.error('Authentication error', error);
+    throw new Error('Failed to initialize Apono backend');
+  }
 
   const router = Router();
   router.use(express.json());
 
-  router.post('/authenticate', async (req, res) => {
-    const credentials = await httpAuth.credentials(req);
+  router.post('/authenticate', createAuthenticationHandler(options, aponoConfig));
 
-    const [info, tokenRes] = await Promise.all([
-      userInfo.getUserInfo(credentials),
-      auth.getPluginRequestToken({
-        onBehalfOf: credentials,
-        targetPluginId: 'catalog',
-      }),
-    ]);
+  const errorHandler = MiddlewareFactory.create({ logger, config }).error();
+  router.use(errorHandler);
 
-    const user = await catalog.getEntityByRef(info.userEntityRef, {
-      token: tokenRes.token,
-    });
-
-    if (!user) {
-      logger.error(`User not found: ${JSON.stringify(credentials)}`);
-      res.status(401).json({ error: 'User not found' });
-      return;
-    }
-
-    const privateKeyDecoded = Buffer.from(privateKey, 'base64').toString('utf-8')
-
-    const expiresIn = expiresInS ?? '1h';
-    const algorithm = signingAlgorithm ?? 'RS256';
-
-    const aponoJwtToken = await jwt.sign({ user, pky: publicKey }, privateKeyDecoded, { algorithm, expiresIn });
-
-    res.json({
-      token: aponoJwtToken,
-    });
-  });
-
-  const middleware = MiddlewareFactory.create({ logger, config });
-
-  router.use(middleware.error());
   return router;
 }

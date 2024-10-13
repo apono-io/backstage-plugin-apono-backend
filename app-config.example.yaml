@@ -1,0 +1,12 @@
+app:
+  title: Apono Example App
+  baseUrl: http://localhost:3000
+
+backend:
+  baseUrl: http://localhost:7007
+  cors:
+    origin: http://localhost:3000
+
+apono:
+  publicKey: abc
+  privateKey: abc
