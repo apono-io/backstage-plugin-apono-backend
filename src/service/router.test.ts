@@ -100,7 +100,7 @@ describe('createRouter', () => {
         .send({});
 
       expect(response.status).toBe(500);
-      expect(response.body.error).toEqual({ "message": "Token generation error", "name": "Error"});
+      expect(response.body.error).toEqual('Internal server error');
     });
   });
 });
