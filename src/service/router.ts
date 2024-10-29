@@ -57,7 +57,9 @@ const createAuthenticationHandler = (options: RouterOptions, aponoConfig: AponoC
   const { logger, httpAuth, userInfo, auth, catalog } = options;
   const { publicKey, privateKey, signingAlgorithm, expiresInS } = aponoConfig;
 
-  return async (req: express.Request, res: express.Response) => {
+  return async (req: express.Request<undefined, undefined, {
+    email?: string;
+  }>, res: express.Response) => {
     try {
       const credentials = await httpAuth.credentials(req);
 
@@ -69,9 +71,21 @@ const createAuthenticationHandler = (options: RouterOptions, aponoConfig: AponoC
         }),
       ]);
 
-      const user = await catalog.getEntityByRef(info.userEntityRef, {
-        token: tokenRes.token,
-      });
+      const email = req.body?.email;
+      let user;
+      if (!email) {
+        user = await catalog.getEntityByRef(info.userEntityRef, {
+          token: tokenRes.token,
+        });
+      } else {
+        user = {
+          spec: {
+            profile: {
+              email,
+            }
+          }
+        };
+      }
 
       const privateKeyDecoded = Buffer.from(privateKey, 'base64').toString('utf-8');
 
