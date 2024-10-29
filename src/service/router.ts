@@ -73,12 +73,6 @@ const createAuthenticationHandler = (options: RouterOptions, aponoConfig: AponoC
         token: tokenRes.token,
       });
 
-      if (!user) {
-        logger.error(`User not found: ${JSON.stringify(credentials)}`);
-        res.status(401).json({ error: 'User not found' });
-        return;
-      }
-
       const privateKeyDecoded = Buffer.from(privateKey, 'base64').toString('utf-8');
 
       const aponoJwtToken = jwt.sign({ user, pky: publicKey }, privateKeyDecoded, {
@@ -89,7 +83,7 @@ const createAuthenticationHandler = (options: RouterOptions, aponoConfig: AponoC
       res.json({ token: aponoJwtToken });
     } catch (error) {
       if (error instanceof Error) logger.error('Authentication error', error);
-      res.status(500).json({ error: 'Internal server error' });
+      res.status(500).json({ message: 'Failed to authenticate user', error: error });
     }
   };
 };

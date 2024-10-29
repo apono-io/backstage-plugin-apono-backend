@@ -14,6 +14,7 @@
     "role": "backend-plugin",
     "pluginId": "apono",
     "pluginPackages": [
+      "@apono-io/backstage-plugin-apono",
       "@apono-io/backstage-plugin-apono-backend"
     ]
   },
