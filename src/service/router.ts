@@ -5,6 +5,9 @@ import express from 'express';
 import Router from 'express-promise-router';
 import jwt, { Algorithm } from 'jsonwebtoken';
 import { isValidBase64RSAPublicKey, isValidBase64RSAPrivateKey, doRSAKeyPairMatch } from './rsa-helpers';
+import pkj from '../../package.json';
+
+export type EmailExtractor = (req: express.Request) => Promise<string | undefined>;
 
 export interface RouterOptions {
   logger: LoggerService;
@@ -13,6 +16,7 @@ export interface RouterOptions {
   httpAuth: HttpAuthService;
   auth: AuthService;
   catalog: CatalogApi;
+  getEmail?: EmailExtractor;
 }
 
 interface AponoConfig {
@@ -54,12 +58,10 @@ const getAponoConfig = (config: RootConfigService): AponoConfig => {
 };
 
 const createAuthenticationHandler = (options: RouterOptions, aponoConfig: AponoConfig) => {
-  const { logger, httpAuth, userInfo, auth, catalog } = options;
+  const { logger, httpAuth, userInfo, auth, catalog, getEmail } = options;
   const { publicKey, privateKey, signingAlgorithm, expiresInS } = aponoConfig;
 
-  return async (req: express.Request<undefined, undefined, {
-    email?: string;
-  }>, res: express.Response) => {
+  return async (req: express.Request, res: express.Response) => {
     try {
       const credentials = await httpAuth.credentials(req);
 
@@ -71,9 +73,18 @@ const createAuthenticationHandler = (options: RouterOptions, aponoConfig: AponoC
         }),
       ]);
 
-      const email = req.body?.email;
+      let email: string | undefined;
+      if (getEmail) {
+        logger.debug('Extracting email from request');
+        email = await getEmail(req);
+      } else if (req.body?.email) {
+        logger.debug('Extracting email from request body');
+        email = req.body.email;
+      }
+
       let user;
       if (!email) {
+        logger.debug('Fetching user from catalog');
         user = await catalog.getEntityByRef(info.userEntityRef, {
           token: tokenRes.token,
         });
@@ -89,12 +100,21 @@ const createAuthenticationHandler = (options: RouterOptions, aponoConfig: AponoC
 
       const privateKeyDecoded = Buffer.from(privateKey, 'base64').toString('utf-8');
 
-      const aponoJwtToken = jwt.sign({ user, pky: publicKey }, privateKeyDecoded, {
+      const frontendPluginVersion = req.header('x-backstage-plugin-version');
+
+      const aponoJwtToken = jwt.sign({
+        issuer: 'backstage',
+        // Backstage Plugin Version
+        backend_plugin_version: pkj?.version || 'unknown',
+        frontend_plugin_version: frontendPluginVersion || 'unknown',
+        user,
+        pky: publicKey
+      }, privateKeyDecoded, {
         algorithm: signingAlgorithm,
         expiresIn: expiresInS,
       });
 
-      res.json({ token: aponoJwtToken });
+      res.json({ token: aponoJwtToken, profileEmail: email });
     } catch (error) {
       if (error instanceof Error) logger.error('Authentication error', error);
       res.status(500).json({ message: 'Failed to authenticate user', error: error });
