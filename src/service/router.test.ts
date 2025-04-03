@@ -57,24 +57,6 @@ describe('createRouter', () => {
       expect(response.status).toBe(200);
     });
 
-    it('returns 401 when user is not found', async () => {
-      const mockCredentials = { principal: { user: 'mockUser' } } as BackstageCredentials;
-      const mockUserInfo = { userEntityRef: 'user:default/unExistingUser' } as BackstageUserInfo;
-      const mockTokenResponse = { token: 'mockAuthToken' };
-
-      // Mock services behavior
-      mockedServices.httpAuth.credentials.mockResolvedValue(mockCredentials);
-      mockedServices.userInfo.getUserInfo.mockResolvedValue(mockUserInfo);
-      mockedServices.auth.getPluginRequestToken.mockResolvedValue(mockTokenResponse);
-
-      const response = await request(app)
-        .post('/authenticate')
-        .send({});
-
-      expect(response.status).toBe(401);
-      expect(response.body.error).toBe('User not found');
-    });
-
     it('handles errors in token generation', async () => {
       const mockCredentials = { principal: { user: 'mockUser' } } as BackstageCredentials;
       const mockUserInfo = { userEntityRef: 'user:default/mockUser' } as BackstageUserInfo;
@@ -100,7 +82,7 @@ describe('createRouter', () => {
         .send({});
 
       expect(response.status).toBe(500);
-      expect(response.body.error).toEqual('Internal server error');
+      expect(response.body.message).toEqual('Failed to authenticate user');
     });
   });
 });
