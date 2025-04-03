@@ -40,7 +40,7 @@ const getAponoConfig = (config: RootConfigService): AponoConfig => {
   const publicKey = config.getString('apono.publicKey');
   const privateKey = config.getString('apono.privateKey');
   const signingAlgorithm = config.getOptionalString('apono.signingAlgorithm') as Algorithm || DEFAULT_ALGORITHM;
-  const expiresInS = config.getOptional<number | string>(DEFAULT_EXPIRES_IN);
+  const expiresInS = config.getOptional<number | string>('apono.expiresInS') || DEFAULT_EXPIRES_IN;
 
   if (!isValidBase64RSAPublicKey(publicKey)) {
     throw new ConfigurationError('Invalid public key');
