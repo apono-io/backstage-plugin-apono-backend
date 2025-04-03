@@ -26,7 +26,7 @@ interface AponoConfig {
   expiresInS: number | string;
 }
 
-const DEFAULT_EXPIRES_IN = '1h';
+const DEFAULT_EXPIRES_IN = '24h';
 const DEFAULT_ALGORITHM: Algorithm = 'RS256';
 
 class ConfigurationError extends Error {
