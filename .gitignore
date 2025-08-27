@@ -105,6 +105,13 @@ dist
 
 yarn.lock
 
+# ignore everything in .yarn
+.yarn/*
+
+# but keep releases
+!.yarn/releases
+!.yarn/releases/*
+
 dist-types/
 
 .idea
