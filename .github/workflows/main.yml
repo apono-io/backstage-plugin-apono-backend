@@ -20,10 +20,12 @@ jobs:
           cache: "yarn"
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: yarn install --immutable
 
       - name: Run Build
-        run: yarn build
+        run: |
+          yarn prebuild
+          yarn build
 
       - name: Run tests
         # Suppress noisy test output
